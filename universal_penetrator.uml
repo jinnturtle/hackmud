@@ -1,0 +1,28 @@
+@startuml
+
+!include ./uml_skinparams
+
+start;
+
+:first payload;
+
+repeat :determine lock;
+    if (supported?) then (no)
+        :error message;
+        break;
+    endif
+
+    :get lock interface,
+    solution vals;
+    note right
+        TODO: #db looks like
+        a good place to look
+        for storage options.
+    end note
+
+    repeat :knock;
+    repeat while (r.includes(fail_string)) is (true) not (false)
+repeat while (r.includes(LOCK_ERROR)) is (true) not (false)
+
+stop;
+@enduml
