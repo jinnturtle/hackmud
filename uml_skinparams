@@ -1,0 +1,119 @@
+' macros --------
+
+!$color_canvas_bg = "#303030"
+!$color_arrow     = "#ffb090"
+!$color_node_bg   = "#f8d8b0"
+!$color_node_d1   = "#f8e0d8"
+!$color_node_d2   = "#e0c080"
+!$color_node_d3   = "#80c080"
+!$color_node_d4   = "#80c0c0"
+!$color_node_d5   = "#9090e0"
+!$color_node_d6   = "#d08080"
+!$color_node_d7   = "#c080c0"
+
+' END macros --------
+
+!procedure $primary_scheme()
+    FontColor $color_canvas_bg
+    BorderColor $color_canvas_bg
+    ' n.b. BackgroundColor (usually) refers to bg of a node
+    BackgroundColor $color_node_bg
+!endprocedure
+
+!procedure $primary_scheme_outline()
+    FontColor $color_node_bg
+    BorderColor $color_node_bg
+    BackgroundColor $color_canvas_bg
+!endprocedure
+
+!procedure $primary_style()
+    Padding 8
+    Margin 4
+    RoundCorner 20
+!endprocedure
+
+skinparam backgroundColor $color_canvas_bg
+skinparam titleFontColor $color_node_bg
+
+skinparam partition {
+    $primary_scheme_outline()
+}
+
+skinparam activity {
+    $primary_scheme()
+    BarColor $color_node_bg
+    StartColor $color_node_bg
+    EndColor $color_node_bg
+    StopColor $color_node_bg
+    DiamondBackgroundColor $color_node_bg
+    DiamondBorderColor $color_canvas_bg
+    DiamondFontColor $color_canvas_bg
+}
+
+skinparam arrow {
+    $primary_scheme_outline()
+    Color $color_arrow
+}
+
+skinparam note {
+    $primary_scheme()
+    BackgroundColor $color_node_d2
+    BorderThickness 1
+}
+
+<style>
+activityDiagram {
+    activity {
+        $primary_style()
+    }
+    partition {
+        RoundCorner 5
+    }
+}
+
+mindmapDiagram {
+    node {
+        BackgroundColor $color_node_bg
+        MaximumWidth 200
+        Padding 8
+        Margin 4
+        RoundCorner 20
+        LineColor $color_canvas_bg
+    }
+    :depth(0) {
+        BackgroundColor $color_canvas_bg
+        FontColor $color_node_bg
+        FontStyle bold
+        LineColor $color_node_bg
+    }
+    :depth(1) {
+        BackgroundColor $color_node_d1
+    }
+    :depth(2) {
+        BackgroundColor $color_node_d2
+    }
+    :depth(3) {
+        BackgroundColor $color_node_d3
+    }
+    :depth(4) {
+        BackgroundColor $color_node_d4
+    }
+    :depth(5) {
+        BackgroundColor $color_node_d5
+    }
+    :depth(6) {
+        BackgroundColor $color_node_d6
+    }
+    :depth(7) {
+        BackgroundColor $color_node_d7
+    }
+
+    boxless {
+        FontColor $color_node_bg
+    }
+
+    arrow {
+        LineColor $color_arrow
+    }
+}
+</style>
