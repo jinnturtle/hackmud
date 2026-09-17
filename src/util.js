@@ -1,4 +1,4 @@
-function (ctx,args) { // cmd:"command", args:""
+function (ctx,args) { // cmd:""
     // ::: The Utility :::
     //
     // A collection of small utility programs, selectable via the cmd argument.
@@ -8,10 +8,21 @@ function (ctx,args) { // cmd:"command", args:""
     //
     // ::: History :::
     //
-    // v1.0 [2026-09-15 Tue 22:33] - Added sector scanner.
+    // v1.0 [2026-09-15 Tue 22:33] - Add sector scanner.
     // -------------------------------------------------------------------------
-    // v1.2 [2026-09-15 Tue 23:50] - Added xfer_all, intended to be used in
-    // macros to stash GC to a safe loc.
+    // v1.2 [2026-09-15 Tue 23:50] - Add xfer_all, intended to be used in macros
+    // to stash GC to a safe loc.
+    // -------------------------------------------------------------------------
+    // v1.3 [2026-09-17 Thu 15:47]
+    //
+    // - scan_sector: Sector listing. Parameter sec<tartet_sector> is now
+    // optional, and if not defined, the program will return a sector listing at
+    // security level specified.
+    //
+    // - scan_sector: Result truncation scan_sector also supports list
+    // truncation (from:<idx> n:<idx>).
+    //
+    // - scan_sector: Substring filter.
     // -------------------------------------------------------------------------
 
     // TODO IDEA Would be nice to truncate or page a list that comes from
@@ -29,14 +40,25 @@ function (ctx,args) { // cmd:"command", args:""
 
     // ::: scan_sector :::
     // Return contents of a sector
+    // sl     - security level (fs, hs, ms, ls, ns)
+    // sec    - sector to scan
+    // from   - (optional) return list starting at index
+    // n      - (optional) return up to n number of entries
+    // filter - (optional) filters results by substring
     function scan_sector(args) {
-        if (!l.is_def(args.sec) || !l.is_def(args.sl)) {
+        if (!args.sl) {
             return mkr(false, "scan_sector needs args: sec, sl");
         }
 
         var r,
             sec = args.sec,
             sl = args.sl.toUpperCase();
+
+        const sls = ["FS", "HS", "MS", "LS", "NS"];
+
+        if(!sls.find(l => sl === l)) {
+            return mkr(false, `unsupported sec level: ${sl}`);
+        }
 
         const scan_seclvl = {
             FS(sec) { return #fs.scripts.fullsec({sector:sec}) },
@@ -46,26 +68,31 @@ function (ctx,args) { // cmd:"command", args:""
             NS(sec) { return #fs.scripts.nullsec({sector:sec}) }
         }
 
-        if (!(scan_seclvl[sl](null)).find((str) => str === sec)) {
-            return mkr(false, `SECTOR ${sec} is not in SECLEVEL [${sl}]`);
-        }
+        // if not sec, only worry about returning the sector listing
+        if (sec) {
+            if (!(scan_seclvl[sl](null)).find(str => str === sec)) {
+                return mkr(false, `SECTOR ${sec} is not in SECLEVEL [${sl}]`);
+            }
 
-        r = #ms.chats.join({channel:sec});
-        if (!r.ok) {
-            if (!r.msg.includes("already")) { return r; }
+            r = #ms.chats.join({channel:sec});
+            if (!r.ok) {
+                if (!r.msg.includes("already")) { return r; }
+            }
         }
 
         r = scan_seclvl[sl](sec);
-        if(!l.is_def(r)) { r = mkr(false, `unsupported sec level: ${sl}`); }
 
         #ms.chats.leave({channel:sec});
-
         if (l.is_def(r.ok) && !r.ok) { return r; }
+
+        // final processing before return (range, filter, etc)
+        r = r.slice(args.from, (args.from) ? (args.from+args.n) : args.n);
+        if (args.filter) { r = r.filter(i => i.includes(args.filter)); }
 
         return mkr(
             true,
-            `SECTOR ${sec} [${sl}]\n${"-".repeat(ctx.cols)}\n` +
-                l.columnize(r));
+            `SECTOR ${sec} [${sl}]\n${"-".repeat(ctx.cols)}\n` + l.columnize(r)
+        );
     }
 
 
