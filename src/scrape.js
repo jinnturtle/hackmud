@@ -8,7 +8,9 @@ function (ctx,args) { // tgt:#s.user.scr
     // ::: USAGE :::
     //
     // tgt - target to scrapte
-    // v - verbose mode (outputs a fairly detailed log)
+    //
+    // Runtime data needs to me initialised by an auxiliary (scrape_aux)
+    // program. E.g. user.scrape_aux(cmd:"upload").
     //
     //
     // ::: HISTORY :::
@@ -19,72 +21,61 @@ function (ctx,args) { // tgt:#s.user.scr
     // -------------------------------------------------------------------------
     // v1.0 - Returns a list of locs found scraping a supplied target scriptor.
     // -------------------------------------------------------------------------
+    // v2.0 - Now storing most of runtime data in aux DB. Some optimisations and
+    // cosmetic output changes.
+    // -------------------------------------------------------------------------
 
     // TODO reduce char count to below 2000
-    //      - move consts to DB.
-    //      - comment out logging, not needed if not debugging.
     //      - standartise informational messages and move values to DB.
-    //      - consider removing checks if(ttb()) { return mkr(false,""); }
-    //        from all/most places they're mostly for DEV.
     // TODO consider moving the decorruptor to a lib.
 
-    // password keys: password, pass
+
+    // DATA --------------------------------------------------------------------
 
     const l = #fs.scripts.lib(),
-          tthr = 500, // timeout threshold, bail if less than this
-          timewrn = "`DTIMEOUT`", // text to display if quit due to timeout
-          about_cmds = ["about_us", "strategy", "description", "our_mission",
-                        "corporate_goals", "mission"],
-          news_cmds = ["news_posts", "blog", "news", "posts", "happening",
-                       "latest"],
-          dir_cmds = ["employees", "people", "personnel", "dir"],
-          passwd_regx = /calling this \w* (\w*)/,
-          cmd_key_regx = /Please .* with (\w*):/,
-//          dir_topics = ["Free_BFG"],
-          regxes = [/\w+\.\w+/,
-                    /\w+_\w+/,
-                    /project ([\w\(\)_]+)/,
-                    /work continues on ([\w\(\)_]+)/,
-                    /([\w\(\)_]+) in your mailbox/,
-                    /fake \w+ for ([\w\(\)_]+)/,
-                    /developments \w+ ([\w\(\)_]+)/,
-                    /launch of the ([\w\(\)_]+)/,
-                    /([\w\(\)_]+) announces beta testing/,
-                    /review of ([\w\(\)_]+)/,
-                    /release date for ([\w\(\)_]+)/,
-                    /report all \w+ \w+ ([\w\(\)_]+)/] ;
-    var timeout = false;
+    // program data
+          pd = #db.f({_id:"scrape 2.0"}).first();
 
 
-    function log(msg) {
-        if(args.v) { l.log(msg); }
+    // FUNC --------------------------------------------------------------------
+
+    // make a RegExp out of string data {xpr:<expression>, f:<flags>}
+    function s2rx(d) {
+        return new RegExp(d.xpr, d.f);
     }
 
-    // TODO temporary, send debug via chat
-    function sd(msg) {
-        #fs.chats.send({name:"jinndbg", msg:msg});
-    }
+    // TODO a good candidate to be moved to a general library
+    // TODO temporary, for debug, send a message via chat
+    // send to chat - send a message to chat
+    // function stc(name, msg) {
+    //     #fs.chats.send({name:name, msg:msg});
+    // }
 
+    // TODO a good candidate to be moved to a general library
     // time to live - how much time the program still has before server kills it
-    function ttl() {
-        return _END - Date.now();
-    }
+    // function ttl() {
+    //     return _END - Date.now();
+    // }
 
+    // TODO a good candidate to be moved to a general library
     // time to bail?
-    function ttb() {
-        timeout = !l.can_continue_execution(tthr);
-        return timeout;
-    }
+    // function ttb() {
+    //     timeout = (tthr > ttl());
+    //     return timeout;
+    // }
 
     // make a standard returnable object
     function mkr(ok, msg) {
-        if (timeout) { msg = timewrn + "\n" + msg; }
-        return {ok:ok, msg:[msg, l.get_log().join("\n")]};
+        // if (timeout) { msg = "`DTIMEOUT`" + "\n" + msg; }
+        // return {ok:ok, msg:[msg, l.get_log().join("\n")]};
+        return {ok:ok, msg:[msg]};
     }
 
     // decorrupt output of callable target, increase np for better output
     function decorrupt(t, args, np = 2) {
-        // sd(`TTL:${ttl()}`);
+        // TODO cregx and cc could be grabbed from DB to reduce char count
+        //      , rc is fine as is. Perhaps should not handle here if it's
+        //      going into a library.
         const cc = l.corruption_chars,
               rc = cc[0], // replacement char for corruption decolorisation
               cregx = new RegExp(`\`[${l.colors}][${cc}]\``, "g");
@@ -119,71 +110,58 @@ function (ctx,args) { // tgt:#s.user.scr
     }
 
 
-    // log();log();log("*** LOG ***");
+    // MAIN --------------------------------------------------------------------
 
-    // if(ttb()) { return mkr(false,""); }
+    if (!pd) { return mkr(false, "bad data") };
+
+    // replace data entries with regex objecs make out of said data
+    // somewhat of an atrocity, but saves precious char space
+    for (let key in pd) {
+        if (pd[key].xpr) { pd[key] = s2rx(pd[key]); }
+    }
+    pd.rxs_topic = pd.rxs_topic.map(v => s2rx(v));
+
     var r = decorrupt(args.tgt);
 
-    var about_cmd = l.is_str(r) ? about_cmds.find(s => r.includes(s)) : 0;
-    // log(`about_cmd: ${about_cmd}`);
+    // regex here is risky, as it can fail if the order or the separator changes
+    // as we rely on popping the regex result array in a specific order, but
+    // seems that t1 corps allways have the same order, and this is compact
+    var pub_cmds = pd.rx_pub_cmds.exec(r);
+    var about_cmd = pub_cmds.pop();
     if (!about_cmd) { return mkr(false, ["about cmd?", r]); }
 
-    var news_cmd = l.is_str(r) ? news_cmds.find(s => r.includes(s)) : 0;
-    // log(`news_cmd: ${news_cmd}`);
+    var news_cmd = pub_cmds.pop();
     if (!news_cmd) { return mkr(false, ["news cmd?", r]); }
-
-    // if(ttb()) { return mkr(false,""); }
     r = decorrupt(args.tgt, {});
-    // log(`call({}): ${r}`)
 
-    var dir_cmd = l.is_str(r) ? dir_cmds.find(s => r.includes(s)) : 0;
-    // log(`dir_cmd: ${dir_cmd}`);
+    // var dir_cmd = l.is_str(r) ? pd.dir_cmds.find(s => r.includes(s)) : 0;
+    // var dir_cmd = /access .*:"(\w+)"/.exec(r);
+    var dir_cmd = pd.rx_dir_cmd.exec(r);
     if (!dir_cmd) { return mkr(false, ["directory cmd?", r]); }
+    dir_cmd = (dir_cmd) ? dir_cmd.pop() : 0;
 
-    var cmd_key = cmd_key_regx.exec(r);
-    // TODO commented due to char count, useful code otherwise (error checking)
-    // if (!cmd_key) { return mkr(false, ["cmd key?", r]); }
+    var cmd_key = pd.rx_cmd_key.exec(r);
+    if (!cmd_key) { return mkr(false, ["cmd key?", r]); }
     cmd_key = (cmd_key) ? cmd_key.pop() : 0;
-    // log(`cmd_key: ${cmd_key}`);
 
     var pld = {};
     pld[cmd_key] = about_cmd;
-    // if(ttb()) { return mkr(false,""); }
     r = decorrupt(args.tgt, pld);
-    // log(`call(${JSON.stringify(pld)}): ${r}`)
-    var passwd = passwd_regx.exec(r);
-    // TODO commented due to char count, useful code otherwise (error checking)
-    // if (!passwd) { return mkr(false, ["passwd?", pld, r])};
+
+    var passwd = pd.rx_pswd.exec(r);
+    if (!passwd) { return mkr(false, ["passwd?", pld, r])};
     passwd = passwd.pop();
-    // log(`passwd: ${passwd}`);
-
-
-    // TODO won't be needed when this is done, also "password", can be "pass"
-    // var rmsg = `${args.tgt.name}{${cmd_key}:"${news_cmd}"}\n`
-    // rmsg += `${args.tgt.name}{${cmd_key}:"${dir_cmd}", password:"${passwd}"}`;
-    // return mkr(true, rmsg);
-
 
     pld[cmd_key] = news_cmd;
-    // log("[pld] " + JSON.stringify(pld));
-    // TODO decorrupt already stringifies, perhaps remove redundancy
-    // r = JSON.stringify(decorrupt(args.tgt, pld));
     r = decorrupt(args.tgt, pld);
 
     let dir_topics = [];
 
-    for(let rx of regxes) {
+    for(let rx of pd.rxs_topic) {
         for (let item of r) {
-            // if(ttb()) { return mkr(false, ""); }
             let c = rx.exec(item);
             // expecintg regexes to be such that the last element is the target
-            if (c) {
-                dir_topics.push(c.pop());
-                // TODO if we break out of the loop here, finds way less uniques
-                // items, not sure why, investigate
-                //
-                // break;
-            }
+            if (c) { dir_topics.push(c.pop()); }
         }
     }
 
@@ -191,14 +169,12 @@ function (ctx,args) { // tgt:#s.user.scr
 
     r = [];
     for (let tpc of dir_topics) {
-        if(ttb()) { return mkr (false, ""); }
         pld[cmd_key] = dir_cmd;
         pld.password = passwd;
         pld.pass = passwd;
+        pld.p = passwd;
         pld.project = tpc;
 
-        // if(tt() < 1500) {sd(`TTL:${ttl()} TP:${topic}`)};
-        // sd(`TTL:${ttl()} TP:${topic}`);
         r.push({topic:tpc, locs:decorrupt(args.tgt, pld)});
     }
 
@@ -208,11 +184,14 @@ function (ctx,args) { // tgt:#s.user.scr
     // about cmd)
     var locs = [];
     for (let i = 0; i < r.length; i++) {
-        if(r[i].locs.includes(news_cmd)) { r[i] = ""; }
+        if(r[i].locs.includes(news_cmd)) {
+            r[i] = "";
+        }
         else { locs.push(r[i].locs); }
     }
 
-    log(`\`FTTL\`: ${_END - Date.now()}`);
-    // return mkr(true, r);
-    return mkr(true, locs);
+    var cinf = `${args.tgt.name}{${cmd_key}:"${news_cmd}"}\n`;
+
+    // log(`\`FTTL\`: ${_END - Date.now()}`);
+    return mkr(true, [cinf, args.tgt.name + JSON.stringify(pld), locs]);
 }
