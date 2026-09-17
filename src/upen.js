@@ -1,18 +1,35 @@
 function(context, args) { // tgt:#s.user.loc
-    // UNIPICK, the universal lock picker.
+    // ::: UNIPEN :::
+    //
+    // The universal penetrator.
+    //
     // A lock picker that should adapt to many if not all locks in Hackmud.
     // Very early work in progress, based on my earlier project: c00x_bash.
+    //
+    // Author: JinnT
+    //
+    //
+    // ::: History :::
+    //
+    // v0.2 - c003 works, EZ_40 times out if not lucky. Rebuilt the framework to
+    // more easily add other lock solvers to this script in a fairly compact
+    // manner (important as character count limited by Hackmud).
+    // -------------------------------------------------------------------------
 
     // TODO Add cheks of remaining time, dump info if about to get killed.
     // TODO Ability to tak an incomplete solution to speed through known vals.
     // TODO Option to disable the log print, is verbose outside dev.
 
     const l = #fs.scripts.lib(),
-          f_sig = "not the",
+          v_maj = 0,
+		  v_min = 2,
+          tthr = 1500, // exec time threshold, exit gracefully if less remains
+          fsig = "not the",
           // lock signature regexes
           lsigs = [
               /`N(c00.)`/,   // CORE c00x family: c001, c002, ...
               /`N(EZ_..)`/ ], // HALPERYON SYSTEMS EZ_x: EZ_21, EZ_35, ...
+          unksig = /Denied access by (.*) lock/,
           // c00X colors
           colors = ["orange", "red", "yellow", "blue", "purple", "cyan", "lime", "green"],
           // EZ_XX unlock commands
@@ -34,15 +51,11 @@ function(context, args) { // tgt:#s.user.loc
 
 
 	function usage() {
-        // TODO v1.0 when supports all c00X and at least least one of the EZ_XX.
-		const v_maj = 0,
-		      v_min = 2;
-
 		let msg = `\n
 *** HELP ***
 
 NAME:
-    Unipick v${v_maj}.${v_min}
+    Unipen v${v_maj}.${v_min}
 
 INFO:
     Unlock locks of a loc. Currently supports:
@@ -62,11 +75,11 @@ ARGS:
 `
 		return msg;
 	}
-    var atk_a = {};
+    var pld = {}; // attack payload
     // make return object
     function mkr(ok, msg) {
         return {ok:ok,
-                msg:`${msg}\nbest:${JSON.stringify(atk_a)}` +
+                msg:`${msg}\nbest:${JSON.stringify(pld)}` +
                 "\n\n*** LOG ***\n\n" + l.get_log().join("\n")};
     }
 
@@ -79,26 +92,24 @@ ARGS:
     }
 
 
-    var atk_r;
+    var atk_r; // arrack return/response
     function atk() {
-        l.log(atk_a);
-        l.log(atk_r = args.tgt.call(atk_a));
+        l.log(pld);
+        l.log(atk_r = args.tgt.call(pld));
     }
-
-    var keys;
-    var vals; // lock vals
 
     atk();
     var im_in = false;
     while (!im_in) {
-        var lname, // lock name // TODO can probably double-use as capture too
+        var lname = "", // lock name // TODO can probably double-use as capture too
             capture;
 
         for (let sig of lsigs) {
             if (l.is_arr(capture = sig.exec(atk_r))) {
                 lname = capture.pop();
+                l.log("`FLOCK FOUND` " + lname)
                 break;
-            };
+            }
         }
 
         if (!l.is_def(keys_dict[lname])) {
@@ -108,9 +119,13 @@ ARGS:
         let fail = true;
         for (let key in keys_dict[lname]) {
             for (let val of keys_dict[lname][key]) {
-                atk_a[key] = val;
+                if (!l.can_continue_execution(tthr)) { // time time time
+                    return mkr(false, "TIMEOUT");
+                }
+
+                pld[key] = val;
                 atk();
-                if (!(fail = atk_r.includes(f_sig))) { // TODO would regex be more compact?
+                if (!(fail = atk_r.includes(fsig))) { // TODO would regex be more compact?
                     break;
                 }
             }
@@ -123,5 +138,5 @@ ARGS:
         im_in = !atk_r.includes("LOCK_ERROR")
     }
 
-    return mkr(im_in, atk_a);
+    return mkr(im_in, "");
 }
