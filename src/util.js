@@ -24,6 +24,8 @@ function (ctx,args) { // cmd:""
     //
     // - scan_sector: Substring filter.
     // -------------------------------------------------------------------------
+    // v1.4 [2026-09-17 Thu 23:17] In scan, treat args.n:0 same as null.
+    // -------------------------------------------------------------------------
 
     // TODO IDEA Would be nice to truncate or page a list that comes from
     // scripts.<fullsec, etc>, probably can be done via a small modification to
@@ -52,7 +54,8 @@ function (ctx,args) { // cmd:""
 
         var r,
             sec = args.sec,
-            sl = args.sl.toUpperCase();
+            sl = args.sl.toUpperCase(),
+            n = args.n ? args.n : undefined;
 
         const sls = ["FS", "HS", "MS", "LS", "NS"];
 
@@ -86,7 +89,7 @@ function (ctx,args) { // cmd:""
         if (l.is_def(r.ok) && !r.ok) { return r; }
 
         // final processing before return (range, filter, etc)
-        r = r.slice(args.from, (args.from) ? (args.from+args.n) : args.n);
+        r = r.slice(args.from, (args.from) ? (args.from+n) : n);
         if (args.filter) { r = r.filter(i => i.includes(args.filter)); }
 
         return mkr(
