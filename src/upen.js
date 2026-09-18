@@ -28,25 +28,56 @@ function(context, args) { // tgt:#s.user.loc
           // lock signature regexes
           lsigs = [
               /`N(c00.)`/,   // CORE c00x family: c001, c002, ...
-              /`N(EZ_..)`/ ], // HALPERYON SYSTEMS EZ_x: EZ_21, EZ_35, ...
+              /`N(EZ_..)`/,  // HALPERYON SYSTEMS EZ_x: EZ_21, EZ_35, ...
+              /`N(l0\w+)`/,  // l0cket, l0ckbox
+              /`N(DAT\w+)`/, // DATA_CHECK
+          ],
           unksig = /Denied access by (.*) lock/,
           // c00X colors
-          colors = ["orange", "red", "yellow", "blue", "purple", "cyan", "lime", "green"],
+          colors = ["orange", "red", "yellow", "blue",
+                    "purple", "cyan", "lime", "green"],
+          color_digits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
           // EZ_XX unlock commands
           ez_cmds = ["open", "unlock", "release"],
-          // EZ_40 primes // TODO not sure how many we actually need (guess 25)
+          // EZ_35 digits
+          ez_digits = color_digits,
+          // EZ_40 primes
+          // TODO not sure how many we actually need (guess 25), highest
+          //      observed so far was 67
           ez_primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43,
                        47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97],
+          k3ys = ["vc2c7q", "tvfkyq", "72umy0", "pmvr1q"], // TODO gather more
+          data_check_map = [
+              // safety depends on the use of scripts.++++++
+              {q:"safety dep", a:"get_level"}, // TODO test
+              // a ++++++ is a household cleaning device with a rudimentary
+              {q:"++ is a house", a:"robovac"}, // tested
+              // user ++++++ uses the port epoch environment to request gc
+              {q:"to request gc", a:"outta_juice"}, // tested
+              // communications issued by user ++++++ demonstrate structural
+              // patterns associated with humor
+              {q:"th humor", a:"sans_comedy"}, // tested
+              // pet, pest, plague and meme are accurate descriptors of the ++++
+              {q:"pet,", a:"bunnybat"} // TODO test
+              // users gather in channel CAFE to share ++++++
+              // {q:"CAFE", a: no idea} // TODO investigate CAFE
+          ],
           // lock keys/args to crack
           keys_dict = {
-              c001:{c001: colors},
+              c001:{c001: colors,
+                    color_digit: color_digits},
               c002:{c002: colors,
                     c002_complement: colors},
               c003:{c003: colors,
                     c003_triad_1: colors,
                     c003_triad_2: colors},
+              EZ_21:{EZ_21: ez_cmds},
+              EZ_35:{EZ_35: ez_cmds,
+                     digit: ez_digits},
               EZ_40:{EZ_40: ez_cmds,
-                     ez_prime: ez_primes}
+                     ez_prime: ez_primes},
+              l0cket:{l0cket: k3ys},
+              DATA_CHECK:{DATA_CHECK: data_check_map}
           };
 
 
@@ -59,12 +90,13 @@ NAME:
 
 INFO:
     Unlock locks of a loc. Currently supports:
-    CORE ........... c002, c003
+    CORE  ....... c002, c003
+    HALPERION  .. EZ_21, EZ_35, EZ_40
 
     Coming soon:
-    CORE ........... c001
-    HALPERION EZ_ .. 21, 35, 40
-    Nuutec ......... l0cket
+    CORE    ..... c001 (WIP, finalizing)
+    Unknown ..... DATA_CHECK (WIP, partial, testing)
+    Nuutec  ..... l0cket (WIP, partial, testing)
 
 USAGE:
     ${context.this_script} {tgt: <loc>}
@@ -75,15 +107,16 @@ ARGS:
 `
 		return msg;
 	}
+
     var pld = {}; // attack payload
     // make return object
     function mkr(ok, msg) {
         return {ok:ok,
-                msg:`${msg}\nbest:${JSON.stringify(pld)}` +
+                msg:`${msg}\nbest:${args.tgt.name}${JSON.stringify(pld)}` +
                 "\n\n*** LOG ***\n\n" + l.get_log().join("\n")};
     }
 
-    // -------------------------------------------------------------------------
+    // MAIN --------------------------------------------------------------------
 
     if (!l.is_def(args) || !l.is_def(args.tgt)) {
         return mkr(false, usage());
@@ -92,7 +125,8 @@ ARGS:
     }
 
 
-    var atk_r; // arrack return/response
+    // TODO consider reducing user of global variables if char count permits
+    var atk_r; // attack return/response
     function atk() {
         l.log(pld);
         l.log(atk_r = args.tgt.call(pld));
@@ -116,22 +150,49 @@ ARGS:
             return mkr(false, `unsupported lock: ${lname}`);
         }
 
-        let fail = true;
-        for (let key in keys_dict[lname]) {
-            for (let val of keys_dict[lname][key]) {
-                if (!l.can_continue_execution(tthr)) { // time time time
-                    return mkr(false, "TIMEOUT");
+
+        // TODO think of ways to restructure to separate solvers more nicely
+        if (lname === "DATA_CHECK") {
+            // map solver for e.g. DATA_CHECK
+            for (let key in keys_dict[lname]) {
+                // payload with [key]="" prompts the lock to return query string
+                pld[key] = "";
+                atk();
+                let qs = atk_r.split("\n"); // have to do this in order
+                let a = ""; // concatenated answers to the query
+                // TODO think if there's a more elegant solution .map maybe?
+                for (let row of qs) {
+                    for (let val of keys_dict[lname][key]) {
+                        a += row.includes(val.q) ? val.a : "";
+                    }
                 }
 
-                pld[key] = val;
+                pld[key] = a;
                 atk();
-                if (!(fail = atk_r.includes(fsig))) { // TODO would regex be more compact?
-                    break;
+
+                if (atk_r.includes(fsig)) {
+                    return mkr(false, `failed at ${lname}:${key}`);
                 }
             }
+        } else {
+            // brute force solver for e.g. c001,2,3 EZ_XX, l0cket
+            let fail = true;
+            for (let key in keys_dict[lname]) {
+                for (let val of keys_dict[lname][key]) {
+                    if (!l.can_continue_execution(tthr)) { // time time time
+                        return mkr(false, "TIMEOUT");
+                    }
 
-            if (fail) {
-                return mkr(false, `failed at ${lname}:${key}`);
+                    pld[key] = val;
+                    atk();
+                    if (!(fail = atk_r.includes(fsig))) { // TODO would regex be more compact?
+                        break;
+                    }
+                }
+
+                if (fail) {
+                    return mkr(false, `failed at ${lname}:${key}`);
+                }
             }
         }
 
