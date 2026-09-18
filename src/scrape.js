@@ -24,7 +24,10 @@ function (ctx,args) { // tgt:#s.user.scr
     // v2.0 - Now storing most of runtime data in aux DB. Some optimisations and
     // cosmetic output changes.
     // -------------------------------------------------------------------------
+    // v2.1 - Sorting the output by known loc types (jr, dd, wb, ...)
+    // -------------------------------------------------------------------------
 
+    // TODO add sort option (by [jr, dd, wb, ...], and maybe [ttl, wlf, ...] )
     // TODO reduce char count to below 2000
     //      - standartise informational messages and move values to DB.
     // TODO consider moving the decorruptor to a lib.
@@ -39,6 +42,7 @@ function (ctx,args) { // tgt:#s.user.scr
 
     // FUNC --------------------------------------------------------------------
 
+    // TODO used in Unipen too, should be moved to a lib
     // make a RegExp out of string data {xpr:<expression>, f:<flags>}
     function s2rx(d) {
         return new RegExp(d.xpr, d.f);
@@ -179,15 +183,26 @@ function (ctx,args) { // tgt:#s.user.scr
     }
 
     // TODO report false-positives along source text for finetuning
+    // TODO is there a more compact way to do this, e.g. using .map()?
     //
     // cleaning out false-positive returns (front page should contian news or
     // about cmd)
-    var locs = [];
+    let locs = {jr:[], dd:[], wb:[], oth:[]};
     for (let i = 0; i < r.length; i++) {
-        if(r[i].locs.includes(news_cmd)) {
-            r[i] = "";
+        if (!r[i].locs.includes(news_cmd)) { // filter out the false positives
+            for (let loc of r[i].locs) { // each positive resp is array of strs
+                for (let key in locs) { // sort by jr, dd, ..., other
+                    if (loc.includes(key)) {
+                        locs[key].push(loc);
+                        break;
+                    }
+                    // oth is last, loc is uncathegorised if we got this far
+                    if (key === "oth") {
+                        locs.oth.push(loc);
+                    }
+                }
+            }
         }
-        else { locs.push(r[i].locs); }
     }
 
     var cinf = `${args.tgt.name}{${cmd_key}:"${news_cmd}"}\n`;
