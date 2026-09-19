@@ -6,11 +6,18 @@ function (ctx,args) { // cmd:""
     // Author: JinnT
     //
     //
+    // ::: Utilities :::
+    //
+    // cull ......... Cull a range of upgrades in inventory.
+    // scan_sector .. Return contents of sector or list all sectors in SL.
+    // xfer_all ..... Transfer all GC to target.
+    //
+    //
     // ::: History :::
     //
-    // v1.0 [2026-09-15 Tue 22:33] - Add sector scanner.
+    // v1.0 [2026-09-15 Tue 22:33] Add sector scanner.
     // -------------------------------------------------------------------------
-    // v1.2 [2026-09-15 Tue 23:50] - Add xfer_all, intended to be used in macros
+    // v1.2 [2026-09-15 Tue 23:50] Add xfer_all, intended to be used in macros
     // to stash GC to a safe loc.
     // -------------------------------------------------------------------------
     // v1.3 [2026-09-17 Thu 15:47]
@@ -26,6 +33,9 @@ function (ctx,args) { // cmd:""
     // -------------------------------------------------------------------------
     // v1.4 [2026-09-17 Thu 23:17] In scan, treat args.n:0 same as null.
     // -------------------------------------------------------------------------
+    // v1.5 [2026-09-18 Fri 17:33] Cull: cull a range of upgrades. Basically a
+    // QOL wrapper for sys.cull.
+    // -------------------------------------------------------------------------
 
     // TODO IDEA Would be nice to truncate or page a list that comes from
     // scripts.<fullsec, etc>, probably can be done via a small modification to
@@ -33,7 +43,6 @@ function (ctx,args) { // cmd:""
 
     // Libs
     const l = #fs.scripts.lib();
-
 
     // Make a nice return object
     function mkr(ok, msg) {
@@ -108,10 +117,27 @@ function (ctx,args) { // cmd:""
     }
 
 
+    // ::: cull_range :::
+    // cull upgrades from - to, when you want a quick way to clean after run
+    // the scriptor needs to be passed in as not to trigger a security warning
+    // when running other commands in this script.
+    // s - (scriptror) scriptor to run, (designed for #s.sys.cull)
+    // from - (int) start of range
+    // to - (int) end of range (inclusive)
+    // confirm - (bool) confirm culling
+    function cull_range(args) {
+        args.i = [...Array(args.to+1).keys()].slice(args.from);
+        return (args.s.call(args));
+    }
+
     let cmds = {
         scan:scan_sector,
-        xfer_all:xfer_all
+        xfer_all:xfer_all,
+        cull:cull_range,
     };
 
+    if (!l.is_func(cmds[args.cmd])) {
+        return mkr (false, "invalid cmd: " + args.cmd);
+    }
     return cmds[args.cmd](args);
 }
