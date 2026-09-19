@@ -25,17 +25,24 @@ function (ctx,args) { // cmd:""
               //      observed so far was 67
               ez_primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43,
                            47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97],
-              // TODO gather more
-              k3ys = ["vc2c7q", "tvfkyq", "72umy0", "pmvr1q", "xwz7ja"],
+              // TODO not sure l0cket uses both v1 and v2 codes, test
+              k3ys = [
+                  // k3y_v1
+                  "vc2c7q", "tvfkyq", "72umy0", "pmvr1q", "xwz7ja", "uphlaw",
+                  // k3y_v2
+                  "5c7e1r", "hc3b69", "vthf6e", "lq09tg", "4jitu5", "nyi5u2",
+                  "voon2h", "j1aa4n"
+
+              ],
               data_check_map = [
                   // user ++++++ provides instruction via script
-                  {q:"+ pr", a:"teach"}, // tested
+                  {q:"instruct", a:"teach"}, // tested
                   // safety depends on the use of scripts.++++++
-                  {q:"safet", a:"get_level"}, // TODO test
+                  {q:"safet", a:"get_level"}, // tested
                   // a ++++++ is a household cleaning device with a rudimentary
                   {q:"+ is a house", a:"robovac"}, // tested
                   // user ++++++ uses the port epoch environment to request gc
-                  {q:"t gc", a:"outta_juice"}, // TODO a tested, but new q
+                  {q:"t gc", a:"outta_juice"}, // tested
                   // communications issued by user ++++++ demonstrate structural
                   // patterns associated with humor
                   {q:"th humor", a:"sans_comedy"}, // tested
@@ -45,8 +52,10 @@ function (ctx,args) { // cmd:""
                   {q:"th3_1", a:"heard"}, // tested
                   // "did you know is a communication pattern common to user ++
                   {q:"ion pa", a:"fran_lee"}, // tested
+                  // service ++++++ provides atmospheric updates via the
+                  {q:"atmo", a:"weathernet"}, // tested
                   // users gather in channel CAFE to share ++++++
-                  {q:"CAFE", a:"poetry"} // TODO very unsure, investigate CAFE
+                  {q:"CAFE", a:"poetry"} // TODO test
               ];
 
 
@@ -56,7 +65,7 @@ function (ctx,args) { // cmd:""
             {
                 _id: id,
                 // version of the dataset, date +%Y%m%d%H%M
-                data_ver: "202609181653",
+                data_ver: "202609182125",
                 info: "Unipen 1.0 init data",
 
                 // TODO I assume the ctx.this_scripts reference wont work, but let's see
@@ -116,8 +125,15 @@ ARGS:
         );
     }
 
+
+    function dump() {
+        return [{ok:true, msg: #db.f({_id:id}).first()}];
+    }
+
+
     const fns = {del:del,
-                 upload:upload};
+                 upload:upload,
+                 dump:dump};
     let r = fns[cmd] ?
         fns[cmd]() : [{ok:false, msg:`unknown command: ${cmd}`}];
     return {ok:r[0].ok ? true : false, msg:r};
