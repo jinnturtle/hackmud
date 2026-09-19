@@ -18,7 +18,4 @@ function (ctx, args) { // name:"k3y_v1,k3y_v2", rarity:1
     k3ys = [ ...new Set(k3ys) ];
 
     return (k3ys);
-    return JSON.stringify(k3ys.values());
-    // return JSON.stringify(mkt_ids);
-    return JSON.stringify(r);
 }
