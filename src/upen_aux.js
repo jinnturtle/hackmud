@@ -5,6 +5,8 @@ function (ctx,args) { // cmd:""
     // TODO so far data_ver did not come up handy, consider removing
     // Don't forget to update the data_ver
 
+    // TODO load k3y values in main app during runtime to avoid stale data as
+    //      currently this needs to be re-run every time k3y data changes.
 
     let cmd = (args && args.cmd) ? args.cmd : "upload";
 

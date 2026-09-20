@@ -130,14 +130,57 @@ function (ctx,args) { // cmd:""
         return (args.s.call(args));
     }
 
+    // ::: scan_k3ys :::
+    // Check if there are new k3y values in inventory.
+    function scan_k3ys () {
+        let k3ys = #db.f({ _id:"k3ys"}).first()
+        if (!k3ys) { return mkr(false, "no data :(") }
+
+        let r = #hs.sys.upgrades({full:true}),
+            old_k3ys = k3ys.v1.concat(k3ys.v2),
+            inv_k3ys = r.filter(o => Object.keys(o).includes("k3y")),
+            new_k3ys = inv_k3ys.filter(o => !old_k3ys.includes(o.k3y))
+
+        r = new_k3ys.length > 0 ? ["`LNEW KEYS`"] : ["NO NEW KEYS"]
+        new_k3ys.forEach(k => {
+            r.push("`V" + `000${k.i}\``.slice(-4) +
+                   " " + k.name +
+                   `\`J ${k.k3y}\``)
+        })
+
+        return r
+    }
+
+    // ::: purge :::
+    //
+    // Takes a blacklist of unwanted items names and purges them from the
+    // upgrades inventory. Doesn't touch items with index below the i specified.
+    // s - the scriptror, presumably #s.sys.cull
+    // l - the blacklist
+    // from - purge from here, including item at this position
+    // confirm - confirm purge
+    function purge(args) {
+        let r = #hs.sys.upgrades({full:true}),
+            // only purge items below safe index
+            g = r.filter(o => o.i >= args.from)
+
+        g = g.filter(o => args.l.includes(o.name)) // filter out non-blacklisted
+        g = g.map(o => o.i) // only keep the index numbers of things to purge
+        args.i = g
+        return args.s.call(args);
+    }
+
+
     let cmds = {
         scan:scan_sector,
         xfer_all:xfer_all,
         cull:cull_range,
+        scan_k3ys:scan_k3ys,
+        purge:purge,
     };
 
     if (!l.is_func(cmds[args.cmd])) {
-        return mkr (false, "invalid cmd: " + args.cmd);
+        return mkr(false, "invalid cmd: " + args.cmd);
     }
     return cmds[args.cmd](args);
 }
