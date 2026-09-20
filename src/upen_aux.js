@@ -2,6 +2,9 @@ function (ctx,args) { // cmd:""
     // Support script for Unipen.
     // Uploads/deletes the data needed at runtime into the DB.
 
+    // TODO so far data_ver did not come up handy, consider removing
+    // Don't forget to update the data_ver
+
 
     let cmd = (args && args.cmd) ? args.cmd : "upload";
 
@@ -25,15 +28,20 @@ function (ctx,args) { // cmd:""
               //      observed so far was 67
               ez_primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43,
                            47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97],
-              // TODO not sure l0cket uses both v1 and v2 codes, test
-              k3ys = [
-                  // k3y_v1
-                  "vc2c7q", "tvfkyq", "72umy0", "pmvr1q", "xwz7ja", "uphlaw",
-                  // k3y_v2
-                  "5c7e1r", "hc3b69", "vthf6e", "lq09tg", "4jitu5", "nyi5u2",
-                  "voon2h", "j1aa4n"
-
-              ],
+              k3ys = #db.f({_id:"k3ys"}).first(),
+              // k3ys = {
+              //     v1:[
+              //         // k3y_v1
+              //         // "vc2c7p", "tvfkyq", "uphlaw" occur pretty often is seems
+              //         // so putting them in front
+              //         "vc2c7q", "tvfkyq", "uphlaw", "72umy0", "pmvr1q", "xwz7ja",
+              //         "eoq6de", "cmppiq"
+              //     ],
+              //     v2:[
+              //         // k3y_v2
+              //         "5c7e1r", "hc3b69", "vthf6e", "lq09tg", "4jitu5", "nyi5u2",
+              //         "voon2h", "j1aa4n"
+              //     ]},
               data_check_map = [
                   // user ++++++ provides instruction via script
                   {q:"instruct", a:"teach"}, // tested
@@ -47,7 +55,7 @@ function (ctx,args) { // cmd:""
                   // patterns associated with humor
                   {q:"th humor", a:"sans_comedy"}, // tested
                   // pet, pest, plague and meme are accurate descriptors of the ++++
-                  {q:"pet,", a:"bunnybat"}, // TODO test
+                  {q:"pet,", a:"bunnybat"}, // tested
                   // user 'on_th3_1ntern3ts' has ++++++ many things
                   {q:"th3_1", a:"heard"}, // tested
                   // "did you know is a communication pattern common to user ++
@@ -55,9 +63,10 @@ function (ctx,args) { // cmd:""
                   // service ++++++ provides atmospheric updates via the
                   {q:"atmo", a:"weathernet"}, // tested
                   // users gather in channel CAFE to share ++++++
-                  {q:"CAFE", a:"poetry"} // TODO test
+                  {q:"CAFE", a:"poetry"} // tested
               ];
 
+        if (!k3ys) { return {ok:false, msg:"no k3ys?"} }
 
         return #db.us(
             // return #db.us(
@@ -65,8 +74,8 @@ function (ctx,args) { // cmd:""
             {
                 _id: id,
                 // version of the dataset, date +%Y%m%d%H%M
-                data_ver: "202609182125",
-                info: "Unipen 1.0 init data",
+                data_ver: "202609192204",
+                info: "Unipen 1.0-1.1 init data",
 
                 // TODO I assume the ctx.this_scripts reference wont work, but let's see
                 help_txt: `
@@ -79,9 +88,9 @@ INFO:
     Supported:
     CORE  ....... c001, c002, c003
     HALPERION  .. EZ_21, EZ_35, EZ_40
+    Unknown ..... DATA_CHECK
 
     Partially supported:
-    Unknown ..... DATA_CHECK (partial, testing)
     Nuutec  ..... l0cket (partial, testing)
 
 USAGE:
@@ -118,7 +127,7 @@ ARGS:
                            digit: ez_digits},
                     EZ_40:{EZ_40: ez_cmds,
                            ez_prime: ez_primes},
-                    l0cket:{l0cket: k3ys},
+                    l0cket:{l0cket: k3ys.v1},
                     DATA_CHECK:{DATA_CHECK: data_check_map}
                 }
             }
@@ -134,7 +143,6 @@ ARGS:
     const fns = {del:del,
                  upload:upload,
                  dump:dump};
-    let r = fns[cmd] ?
-        fns[cmd]() : [{ok:false, msg:`unknown command: ${cmd}`}];
-    return {ok:r[0].ok ? true : false, msg:r};
+    return fns[cmd] ?
+        fns[cmd]() : {ok:false, msg:`unknown command: ${cmd}`};
 }
